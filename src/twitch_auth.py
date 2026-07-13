@@ -30,3 +30,14 @@ def get_app_access_token() -> str:
 
     data = response.json()
     return data["access_token"]
+
+
+def get_client_id() -> str:
+    load_dotenv()
+
+    client_id = os.getenv("TWITCH_CLIENT_ID")
+
+    if not client_id:
+        raise RuntimeError("Client ID missing from .env")
+
+    return client_id
