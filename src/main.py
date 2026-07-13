@@ -1,5 +1,11 @@
+from twitch_auth import get_app_access_token
+
+
 def main():
-    print("Marvel Rivals Clip Library")
+    token = get_app_access_token()
+
+    print("Twitch authentication successful.")
+    print(f"Token received: {token[:6]}...")
 
 
 if __name__ == "__main__":
