@@ -92,3 +92,35 @@ def get_undownloaded_clips(limit: int = 10) -> List[Dict[str, Any]]:
             (limit,),
         )
         return [dict(row) for row in cursor.fetchall()]
+
+def query_clips(
+    search_term: str = "",
+    downloaded_only: bool = False,
+    order_by: str = "view_count DESC",
+) -> List[Dict[str, Any]]:
+    """Query clips with optional search filtering and download status."""
+    init_db()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        conditions = []
+        params = []
+
+        if search_term:
+            conditions.append(
+                "(title LIKE ? OR broadcaster_name LIKE ? OR creator_name LIKE ?)"
+            )
+            wildcard = f"%{search_term}%"
+            params.extend([wildcard, wildcard, wildcard])
+
+        if downloaded_only:
+            conditions.append("is_downloaded = 1")
+
+        where_clause = (
+            f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        )
+        query = f"SELECT * FROM clips {where_clause} ORDER BY {order_by}"
+
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
