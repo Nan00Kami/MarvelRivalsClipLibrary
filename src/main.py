@@ -1,6 +1,12 @@
-from database import init_db, save_clips
+from database import (
+    get_undownloaded_clips,
+    init_db,
+    mark_clip_downloaded,
+    save_clips,
+)
 from twitch_auth import get_app_access_token, get_client_id
 from twitch_clips import get_game_clips
+from twitch_downloader import download_clip
 from twitch_games import get_game
 
 
@@ -10,32 +16,32 @@ def main():
     access_token = get_app_access_token()
     client_id = get_client_id()
 
-    game_data = get_game(
-        game_name="Marvel Rivals",
-        client_id=client_id,
-        access_token=access_token,
-    )
-
+    game_data = get_game("Marvel Rivals", client_id, access_token)
     if not game_data["data"]:
-        print("Marvel Rivals was not found.")
+        print("Marvel Rivals not found on Twitch.")
         return
 
-    game = game_data["data"][0]
-    print(f"Game: {game['name']} (ID: {game['id']})")
+    game_id = game_data["data"][0]["id"]
 
-    # Fetch top 25 recent clips
-    clips_response = get_game_clips(
-        game_id=game["id"],
-        client_id=client_id,
-        access_token=access_token,
-        first=25,
-    )
+    # 1. Discover top 20 clips
+    print("[*] Fetching top clips...")
+    response = get_game_clips(game_id, client_id, access_token, first=20)
+    clips = response.get("data", [])
+    new_records = save_clips(clips)
+    print(f"[*] Indexed {new_records} new clips into local database.")
 
-    clips = clips_response.get("data", [])
-    print(f"Fetched {len(clips)} clips from Twitch.")
+    # 2. Process pending downloads (e.g., top 5 highest-viewed)
+    pending = get_undownloaded_clips(limit=5)
+    print(f"[*] Found {len(pending)} clips queued for download.")
 
-    new_count = save_clips(clips)
-    print(f"Saved {new_count} new clips to local database.")
+    for clip in pending:
+        saved_path = download_clip(
+            slug=clip["id"],
+            title=clip["title"],
+            thumbnail_url=clip["thumbnail_url"],
+        )
+        if saved_path:
+            mark_clip_downloaded(clip["id"], saved_path)
 
 
 if __name__ == "__main__":
