@@ -60,3 +60,35 @@ def save_clips(clips: List[Dict[str, Any]]) -> int:
                 inserted += 1
         conn.commit()
     return inserted
+
+def mark_clip_downloaded(clip_id: str, file_path: str):
+    """Flags a clip as downloaded and records its storage location."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            """
+            UPDATE clips
+            SET is_downloaded = 1, file_path = ?
+            WHERE id = ?
+        """,
+            (file_path, clip_id),
+        )
+        conn.commit()
+
+
+def get_undownloaded_clips(limit: int = 10) -> List[Dict[str, Any]]:
+    """Retrieves clips from DB that haven't been downloaded yet."""
+    init_db()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, title, thumbnail_url, view_count
+            FROM clips
+            WHERE is_downloaded = 0
+            ORDER BY view_count DESC
+            LIMIT ?
+        """,
+            (limit,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
